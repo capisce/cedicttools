@@ -1,10 +1,11 @@
 import           Control.Monad
 import           Data.Char
-import           Data.Text hiding (head, map)
+import           Data.List
+import           Data.Text hiding (head, map, unfoldr)
 import           Data.Text.Normalize
 import qualified Data.Text as Text
 
-ex = "shao4 nu:3"
+ex = pack "shao4 nu:3"
 
 toneToDiacriticChar :: Int -> Char
 toneToDiacriticChar tone =
@@ -19,7 +20,7 @@ applyTone syllable tone =
             let splits = splitOn phthong syllable
                 diacritic = toneToDiacriticChar tone
             in case splits of
-                x:y:tail -> Just $ normalize NFC $ intercalate phthong (x:(cons diacritic y):tail)
+                x:y:tail -> Just $ normalize NFC $ Text.intercalate phthong (x:(cons diacritic y):tail)
                 _ -> Nothing
     in
         maybe syllable id (msum $ map adjustPhthong precedence)
@@ -30,7 +31,16 @@ stripTone syllable = (dropEnd 1 syllable, digitToInt $ Text.head $ takeEnd 1 syl
 fixVowels :: Text -> Text
 fixVowels syllable = replace (pack "u:") (pack "ü") syllable
 
-convert :: Text -> Text
-convert text = breakOnAll (pack "]") text
+convert :: Text -> [Text]
+convert text = let
+        next text = do
+            let segment = Text.break isSpace $ stripStart text
+            guard (not $ Text.null $ fst $ segment)
+            return segment
+
+        segments = unfoldr next text
+    in map (uncurry applyTone . stripTone . fixVowels) segments
+
+main = putStrLn $ unpack $ Text.intercalate (pack " ") $ convert ex
 
 --main = readFile "cedict_1_0_ts_utf-8_mdbg.txt"
