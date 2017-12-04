@@ -4,8 +4,33 @@ import           Data.List
 import           Data.Text hiding (head, map, unfoldr)
 import           Data.Text.Normalize
 import qualified Data.Text as Text
+import           Text.ParserCombinators.Parsec hiding (spaces)
 
-ex = pack "shao4 nu:3"
+ex = pack "主場 主场 [zhu3 chang3] /home ground (sports)/home field/main venue/main stadium/"
+
+data CedictEntry = CedictEntry {
+    simplified :: Text,
+    traditional :: Text,
+    pinyin :: [(Text, Int)],
+    translations :: [Text]
+} deriving (Show)
+
+parser :: Parser CedictEntry
+parser =
+    let
+        spaces = skipMany space
+    in do
+        simplified <- many (noneOf " ")
+        spaces
+        traditional <- many (noneOf " ")
+        spaces
+        char '['
+        pinyin <- many (noneOf "]")
+        char ']'
+        spaces
+        char '/'
+        translations <- endBy (many (noneOf "/")) (char '/')
+        return $ CedictEntry (pack simplified) (pack traditional) (convert $ pack pinyin) (map pack translations)
 
 toneToDiacriticChar :: Int -> Char
 toneToDiacriticChar tone =
@@ -31,7 +56,7 @@ stripTone syllable = (dropEnd 1 syllable, digitToInt $ Text.head $ takeEnd 1 syl
 fixVowels :: Text -> Text
 fixVowels syllable = replace (pack "u:") (pack "ü") syllable
 
-convert :: Text -> [Text]
+convert :: Text -> [(Text, Int)]
 convert text = let
         next text = do
             let segment = Text.break isSpace $ stripStart text
@@ -39,8 +64,13 @@ convert text = let
             return segment
 
         segments = unfoldr next text
-    in map (uncurry applyTone . stripTone . fixVowels) segments
 
-main = putStrLn $ unpack $ Text.intercalate (pack " ") $ convert ex
+        conv (text, tone) = (applyTone text tone, tone)
+    in map (conv . stripTone . fixVowels) segments
+
+readEntry :: Text -> Either ParseError CedictEntry
+readEntry text = parse parser "cedict" (unpack text)
+
+main = putStrLn $ unpack $ Text.intercalate (pack " ") $ map fst $ convert ex
 
 --main = readFile "cedict_1_0_ts_utf-8_mdbg.txt"

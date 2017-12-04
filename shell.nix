@@ -2,7 +2,7 @@
 let
   inherit (nixpkgs) pkgs;
   ghc = pkgs.haskell.packages.${compiler}.ghcWithPackages (ps: with ps; [
-          text unicode-transforms
+          parsec text unicode-transforms
         ]);
 in
 pkgs.stdenv.mkDerivation {
