@@ -48,10 +48,20 @@ applyTone syllable tone =
                 x:y:tail -> Just $ normalize NFC $ Text.intercalate phthong (x:(cons diacritic y):tail)
                 _ -> Nothing
     in
-        maybe syllable id (msum $ map adjustPhthong precedence)
+        if (tone < 5) then
+            maybe syllable id (msum $ map adjustPhthong precedence)
+        else
+            syllable
 
 stripTone :: Text -> (Text, Int)
-stripTone syllable = (dropEnd 1 syllable, digitToInt $ Text.head $ takeEnd 1 syllable)
+stripTone syllable =
+    let
+        tone = Text.head $ takeEnd 1 syllable
+    in
+        if (isDigit tone) then
+            (dropEnd 1 syllable, digitToInt tone)
+        else
+            (syllable, 5)
 
 fixVowels :: Text -> Text
 fixVowels syllable = replace (pack "u:") (pack "ü") syllable
