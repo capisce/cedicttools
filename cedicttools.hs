@@ -4,9 +4,11 @@ import           Data.List
 import           Data.Text hiding (head, map, unfoldr)
 import           Data.Text.Normalize
 import qualified Data.Text as Text
+import qualified Data.Map as M
+import           System.IO
 import           Text.ParserCombinators.Parsec hiding (spaces)
 
-ex = pack "主場 主场 [zhu3 chang3] /home ground (sports)/home field/main venue/main stadium/"
+ex = pack "主場"
 
 data CedictEntry = CedictEntry {
     simplified :: Text,
@@ -14,6 +16,13 @@ data CedictEntry = CedictEntry {
     pinyin :: [(Text, Int)],
     translations :: [Text]
 } deriving (Show)
+
+data CedictDatabase = CedictDatabase {
+    entries :: M.Map Text [CedictEntry]
+}
+
+findEntry :: Text -> CedictDatabase -> [CedictEntry]
+findEntry key = M.findWithDefault [] key . entries
 
 parser :: Parser CedictEntry
 parser =
@@ -81,6 +90,26 @@ convert text = let
 readEntry :: Text -> Either ParseError CedictEntry
 readEntry text = parse parser "cedict" (unpack text)
 
-main = putStrLn $ unpack $ Text.intercalate (pack " ") $ map fst $ convert ex
+readDatabase :: IO CedictDatabase
+readDatabase =
+    let
+        loop database file = do
+            eof <- hIsEOF file
+            if eof then
+                return database
+            else do
+                line <- fmap (strip . pack) $ hGetLine file
+                if (Text.head line == '#') then
+                    loop database file
+                else do
+                    d' <- either
+                        (\e -> putStrLn ("Parse error: " ++ (show line) ++ (show e)) >> return database)
+                        (\e -> return (M.insertWith (++) (simplified e) [e] database))
+                        (readEntry line)
+                    loop d' file
+    in
+        fmap CedictDatabase $ withFile "cedict_1_0_ts_utf-8_mdbg.txt" ReadMode (loop M.empty)
 
---main = readFile "cedict_1_0_ts_utf-8_mdbg.txt"
+main = do
+    database <- readDatabase
+    putStrLn $ show $ findEntry ex database
