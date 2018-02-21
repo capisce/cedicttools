@@ -2,10 +2,12 @@ import           Control.Monad
 import           Data.Char
 import           Data.List
 import           Data.Map (Map)
+import           Data.Set (Set)
 import           Data.Text (Text)
 import qualified Data.Text.Normalize as Text
 import qualified Data.Text as Text
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import           System.IO
 import           Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -97,6 +99,11 @@ readEntry text = parse parser "cedict" (Text.unpack text)
 readDatabase :: IO CedictDatabase
 readDatabase =
     let
+        insert database entry =
+            Set.foldr
+                (\key -> Map.insertWith (++) key [entry])
+                database
+                (Set.fromList [simplified entry, traditional entry])
         loop database file = do
             eof <- hIsEOF file
             if eof then
@@ -108,7 +115,7 @@ readDatabase =
                 else do
                     d' <- either
                         (\e -> putStrLn ("Parse error: " ++ (show line) ++ (show e)) >> return database)
-                        (\e -> return (Map.insertWith (++) (simplified e) [e] database))
+                        (\e -> return (insert database e))
                         (readEntry line)
                     loop d' file
     in
