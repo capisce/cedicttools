@@ -121,6 +121,13 @@ readDatabase =
     in
         fmap CedictDatabase $ withFile "cedict_1_0_ts_utf-8_mdbg.txt" ReadMode (loop Map.empty)
 
+showEntry :: CedictEntry -> String
+showEntry entry =
+    (Text.unpack $ simplified entry) ++ "/"
+    ++ (Text.unpack $ traditional entry) ++ "/"
+    ++ (concat $ intersperse " " $ map (Text.unpack . fst) $ pinyin entry) ++ "/"
+    ++ (concat $ intersperse ", " $ map Text.unpack $ translations entry)
+
 main = do
     database <- readDatabase
-    putStrLn $ show $ findEntry database ex
+    interact (unlines . map (concat . intersperse "\n" . map showEntry . findEntry database . Text.pack) . lines)
