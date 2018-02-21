@@ -32,9 +32,9 @@ parser =
     let
         spaces = skipMany space
     in do
-        simplified <- many (noneOf " ")
-        spaces
         traditional <- many (noneOf " ")
+        spaces
+        simplified <- many (noneOf " ")
         spaces
         char '['
         pinyin <- many (noneOf "]")
