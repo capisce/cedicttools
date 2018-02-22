@@ -128,6 +128,12 @@ showEntry entry =
     ++ (concat $ intersperse " " $ map (Text.unpack . fst) $ pinyin entry) ++ "/"
     ++ (concat $ intersperse ", " $ map Text.unpack $ translations entry)
 
+process :: CedictDatabase -> String -> IO ()
+process database str =
+    let entries = findEntry database (Text.pack str)
+    in mapM_ (putStrLn . showEntry) entries
+
 main = do
     database <- readDatabase
-    interact (unlines . map (concat . intersperse "\n" . map showEntry . findEntry database . Text.pack) . lines)
+    input <- getContents
+    mapM_ (process database) (lines input)
