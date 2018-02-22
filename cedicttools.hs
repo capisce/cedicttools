@@ -24,8 +24,8 @@ data CedictDatabase = CedictDatabase {
     entries :: Map Text [CedictEntry]
 }
 
-findEntry :: CedictDatabase -> Text -> [CedictEntry]
-findEntry database key = Map.findWithDefault [] key (entries database)
+findEntries :: CedictDatabase -> Text -> [CedictEntry]
+findEntries database key = Map.findWithDefault [] key (entries database)
 
 parser :: Parser CedictEntry
 parser =
@@ -130,7 +130,7 @@ showEntry entry =
 
 process :: CedictDatabase -> String -> IO ()
 process database str =
-    let entries = findEntry database (Text.pack str)
+    let entries = findEntries database (Text.pack str)
     in mapM_ (putStrLn . showEntry) entries
 
 main = do
