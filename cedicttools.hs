@@ -130,8 +130,9 @@ showEntry entry =
 
 process :: CedictDatabase -> String -> IO ()
 process database str =
-    let entries = findEntries database (Text.pack str)
-    in mapM_ (putStrLn . showEntry) entries
+    case findEntries database (Text.pack str) of
+        [] -> hPutStrLn stderr $ "No match found for " ++ str
+        entries -> mapM_ (putStrLn . showEntry) entries
 
 main = do
     database <- readDatabase
