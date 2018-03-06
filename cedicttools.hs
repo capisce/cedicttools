@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 import           Control.Monad
 import           Data.Char
 import           Data.List
@@ -11,7 +12,7 @@ import qualified Data.Set as Set
 import           System.IO
 import           Text.ParserCombinators.Parsec hiding (spaces)
 
-ex = Text.pack "主場"
+ex = "主場"
 
 data CedictEntry = CedictEntry {
     simplified :: Text,
@@ -54,7 +55,7 @@ toneToDiacriticChar tone =
 
 applyTone :: Text -> Int -> Text
 applyTone syllable tone =
-    let precedence = map Text.pack ["a", "o", "e", "iu", "i", "u", "ü"]
+    let precedence = ["a", "o", "e", "iu", "i", "u", "ü"]
         adjustPhthong :: Text -> Maybe Text
         adjustPhthong phthong =
             let splits = Text.splitOn phthong syllable
@@ -79,7 +80,7 @@ stripTone syllable =
             (syllable, 5)
 
 fixVowels :: Text -> Text
-fixVowels syllable = Text.replace (Text.pack "u:") (Text.pack "ü") syllable
+fixVowels syllable = Text.replace "u:" "ü" syllable
 
 convert :: Text -> [(Text, Int)]
 convert text = let
