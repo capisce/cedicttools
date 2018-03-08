@@ -88,7 +88,8 @@ stripTone syllable =
             (syllable, 5)
 
 fixVowels :: Text -> Text
-fixVowels syllable = Text.replace "u:" "ü" syllable
+fixVowels syllable =
+    Text.replace "u:" "ü" syllable
 
 convert :: Text -> [(Text, Int)]
 convert text =
@@ -104,7 +105,8 @@ convert text =
     in map (conv . stripTone . fixVowels) segments
 
 readEntry :: Text -> Either ParseError CedictEntry
-readEntry text = parse parser "cedict" (Text.unpack text)
+readEntry text =
+    parse parser "cedict" (Text.unpack text)
 
 parseError :: Text -> ParseError -> IO ()
 parseError line error =
@@ -149,7 +151,8 @@ process database str =
         [] -> hPutStrLn stderr $ "No match found for " ++ str
         entries -> mapM_ (putStrLn . showEntry) entries
 
-main = do
-    database <- readDatabase
-    input <- getContents
-    mapM_ (process database) (lines input)
+main =
+    do
+        database <- readDatabase
+        input <- getContents
+        mapM_ (process database) (lines input)
