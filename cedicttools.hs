@@ -25,8 +25,11 @@ data CedictDatabase = CedictDatabase {
     entries :: Map Text [CedictEntry]
 }
 
+cedictFile = "cedict_1_0_ts_utf-8_mdbg.txt"
+
 findEntries :: CedictDatabase -> Text -> [CedictEntry]
-findEntries database key = Map.findWithDefault [] key (entries database)
+findEntries database key =
+    Map.findWithDefault [] key (entries database)
 
 parser :: Parser CedictEntry
 parser =
@@ -44,9 +47,12 @@ parser =
         char '/'
         translations <- endBy (many (noneOf "/")) (char '/')
         return $
-            CedictEntry
-                (Text.pack simplified) (Text.pack traditional)
-                (convert $ Text.pack pinyin) (map Text.pack translations)
+            CedictEntry {
+                simplified = Text.pack simplified,
+                traditional = Text.pack traditional,
+                pinyin = convert $ Text.pack pinyin,
+                translations = map Text.pack translations
+            }
 
 toneToDiacriticChar :: Int -> Char
 toneToDiacriticChar tone =
@@ -61,7 +67,9 @@ applyTone syllable tone =
             let splits = Text.splitOn phthong syllable
                 diacritic = toneToDiacriticChar tone
             in case splits of
-                x:y:tail -> Just $ Text.normalize Text.NFC $ Text.intercalate phthong (x:(Text.cons diacritic y):tail)
+                x:y:tail -> Just $ Text.normalize Text.NFC
+                                 $ Text.intercalate phthong
+                                    (x:(Text.cons diacritic y):tail)
                 _ -> Nothing
     in
         if (tone < 5) then
@@ -83,7 +91,8 @@ fixVowels :: Text -> Text
 fixVowels syllable = Text.replace "u:" "ü" syllable
 
 convert :: Text -> [(Text, Int)]
-convert text = let
+convert text =
+    let
         next text = do
             let segment = Text.break isSpace $ Text.stripStart text
             guard (not $ Text.null $ fst $ segment)
@@ -97,9 +106,16 @@ convert text = let
 readEntry :: Text -> Either ParseError CedictEntry
 readEntry text = parse parser "cedict" (Text.unpack text)
 
+parseError :: Text -> ParseError -> IO ()
+parseError line error =
+    putStrLn $ "Parse error: " ++ show line ++ show error
+
 readDatabase :: IO CedictDatabase
 readDatabase =
-    let
+    do
+        database <- withFile cedictFile ReadMode (loop Map.empty)
+        return $ CedictDatabase database
+    where
         insert database entry =
             Set.foldr
                 (\key -> Map.insertWith (++) key [entry])
@@ -115,12 +131,10 @@ readDatabase =
                     loop database file
                 else do
                     d' <- either
-                        (\e -> putStrLn ("Parse error: " ++ (show line) ++ (show e)) >> return database)
+                        (\e -> parseError line e >> return database)
                         (\e -> return (insert database e))
                         (readEntry line)
                     loop d' file
-    in
-        fmap CedictDatabase $ withFile "cedict_1_0_ts_utf-8_mdbg.txt" ReadMode (loop Map.empty)
 
 showEntry :: CedictEntry -> String
 showEntry entry =
