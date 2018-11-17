@@ -1,14 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
+import           Control.Arrow
 import           Control.Monad
+import           Data.ByteString (ByteString)
 import           Data.Char
 import           Data.List
 import           Data.Map (Map)
 import           Data.Set (Set)
 import           Data.Text (Text)
+import           Data.Trie (Trie)
+import qualified Data.Text.Encoding as Text
 import qualified Data.Text.Normalize as Text
 import qualified Data.Text as Text
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Trie as Trie
 import           System.IO
 import           Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -26,6 +31,19 @@ data CedictDatabase = CedictDatabase {
 }
 
 cedictFile = "cedict_1_0_ts_utf-8_mdbg.txt"
+
+makeTrie :: CedictDatabase -> Trie [CedictEntry]
+makeTrie database =
+    Trie.fromList $ Map.toList (Map.mapKeys (Text.encodeUtf8) (entries database))
+
+match :: Trie [CedictEntry] -> ByteString -> Maybe ((ByteString, [CedictEntry]), ByteString)
+match trie str =
+    fmap (\(prefix, entry, remaining) -> ((prefix, entry), remaining)) $
+        Trie.match trie str
+
+consume :: Trie [CedictEntry] -> Text -> [(Text, [CedictEntry])]
+consume trie str =
+    map (first Text.decodeUtf8) $ unfoldr (match trie) (Text.encodeUtf8 str)
 
 findEntries :: CedictDatabase -> Text -> [CedictEntry]
 findEntries database key =
@@ -145,14 +163,16 @@ showEntry entry =
     ++ (concat $ intersperse " " $ map (Text.unpack . fst) $ pinyin entry) ++ "/"
     ++ (concat $ intersperse ", " $ map Text.unpack $ translations entry)
 
-process :: CedictDatabase -> String -> IO ()
-process database str =
-    case findEntries database (Text.pack str) of
-        [] -> hPutStrLn stderr $ "No match found for " ++ str
-        entries -> mapM_ (putStrLn . showEntry) entries
+process :: Trie [CedictEntry] -> Text -> IO ()
+process trie str =
+    forM_ (consume trie str) $
+        \(text, entries) -> do
+        putStrLn $ Text.unpack text
+        mapM_ (putStrLn . showEntry) entries
 
 main =
     do
         database <- readDatabase
+        let trie = makeTrie database
         input <- getContents
-        mapM_ (process database) (lines input)
+        mapM_ (process trie . Text.pack) (lines input)
