@@ -36,14 +36,14 @@ makeTrie :: CedictDatabase -> Trie [CedictEntry]
 makeTrie database =
     Trie.fromList $ Map.toList (Map.mapKeys (Text.encodeUtf8) (entries database))
 
-match :: Trie [CedictEntry] -> ByteString -> Maybe ((ByteString, [CedictEntry]), ByteString)
+match :: Trie [CedictEntry] -> Text -> Maybe ((Text, [CedictEntry]), Text)
 match trie str =
-    fmap (\(prefix, entry, remaining) -> ((prefix, entry), remaining)) $
-        Trie.match trie str
+    fmap (\(prefix, entry, remaining) -> ((Text.decodeUtf8 prefix, entry), Text.decodeUtf8 remaining)) $
+        Trie.match trie (Text.encodeUtf8 str)
 
 consume :: Trie [CedictEntry] -> Text -> [(Text, [CedictEntry])]
 consume trie str =
-    map (first Text.decodeUtf8) $ unfoldr (match trie) (Text.encodeUtf8 str)
+    unfoldr (match trie) str
 
 findEntries :: CedictDatabase -> Text -> [CedictEntry]
 findEntries database key =
