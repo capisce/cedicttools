@@ -1,4 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
+module CedictTools
+    ( CedictEntry
+    , CedictTools
+    , initCedictTools
+    , match
+    , pinyin
+    , showEntry
+    , simplified
+    , traditional
+    , translations
+    ) where
+
 import           Control.Arrow
 import           Control.Monad
 import           Data.ByteString (ByteString)
@@ -26,24 +38,28 @@ data CedictEntry = CedictEntry {
     translations :: [Text]
 } deriving (Show)
 
+data CedictTools = CedictTools {
+    trie :: Trie [CedictEntry]
+}
+
 data CedictDatabase = CedictDatabase {
     entries :: Map Text [CedictEntry]
 }
 
 cedictFile = "cedict_1_0_ts_utf-8_mdbg.txt"
 
-makeTrie :: CedictDatabase -> Trie [CedictEntry]
+makeTrie :: CedictDatabase -> CedictTools
 makeTrie database =
-    Trie.fromList $ Map.toList (Map.mapKeys (Text.encodeUtf8) (entries database))
+    CedictTools $ Trie.fromList $ Map.toList (Map.mapKeys (Text.encodeUtf8) (entries database))
 
-match :: Trie [CedictEntry] -> Text -> Maybe ((Text, [CedictEntry]), Text)
-match trie str =
+match :: CedictTools -> Text -> Maybe ((Text, [CedictEntry]), Text)
+match tools str =
     fmap (\(prefix, entry, remaining) -> ((Text.decodeUtf8 prefix, entry), Text.decodeUtf8 remaining)) $
-        Trie.match trie (Text.encodeUtf8 str)
+        Trie.match (trie tools) (Text.encodeUtf8 str)
 
-consume :: Trie [CedictEntry] -> Text -> [(Text, [CedictEntry])]
-consume trie str =
-    unfoldr (match trie) str
+consume :: CedictTools -> Text -> [(Text, [CedictEntry])]
+consume tools str =
+    unfoldr (match tools) str
 
 findEntries :: CedictDatabase -> Text -> [CedictEntry]
 findEntries database key =
@@ -130,6 +146,12 @@ parseError :: Text -> ParseError -> IO ()
 parseError line error =
     putStrLn $ "Parse error: " ++ show line ++ show error
 
+initCedictTools :: IO CedictTools
+initCedictTools =
+    do
+        database <- readDatabase
+        return $ makeTrie database
+
 readDatabase :: IO CedictDatabase
 readDatabase =
     do
@@ -163,16 +185,15 @@ showEntry entry =
     ++ (concat $ intersperse " " $ map (Text.unpack . fst) $ pinyin entry) ++ "/"
     ++ (concat $ intersperse ", " $ map Text.unpack $ translations entry)
 
-process :: Trie [CedictEntry] -> Text -> IO ()
-process trie str =
-    forM_ (consume trie str) $
+process :: CedictTools -> Text -> IO ()
+process tools str =
+    forM_ (consume tools str) $
         \(text, entries) -> do
         putStrLn $ Text.unpack text
         mapM_ (putStrLn . showEntry) entries
 
 main =
     do
-        database <- readDatabase
-        let trie = makeTrie database
+        tools <- initCedictTools
         input <- getContents
-        mapM_ (process trie . Text.pack) (lines input)
+        mapM_ (process tools . Text.pack) (lines input)
