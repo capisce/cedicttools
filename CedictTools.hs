@@ -46,8 +46,6 @@ data CedictDatabase = CedictDatabase {
     entries :: Map Text [CedictEntry]
 }
 
-cedictFile = "cedict_1_0_ts_utf-8_mdbg.txt"
-
 makeTrie :: CedictDatabase -> CedictTools
 makeTrie database =
     CedictTools $ Trie.fromList $ Map.toList (Map.mapKeys (Text.encodeUtf8) (entries database))
@@ -146,14 +144,14 @@ parseError :: Text -> ParseError -> IO ()
 parseError line error =
     putStrLn $ "Parse error: " ++ show line ++ show error
 
-initCedictTools :: IO CedictTools
-initCedictTools =
+initCedictTools :: String -> IO CedictTools
+initCedictTools cedictFile =
     do
-        database <- readDatabase
+        database <- readDatabase cedictFile
         return $ makeTrie database
 
-readDatabase :: IO CedictDatabase
-readDatabase =
+readDatabase :: String -> IO CedictDatabase
+readDatabase cedictFile =
     do
         database <- withFile cedictFile ReadMode (loop Map.empty)
         return $ CedictDatabase database
@@ -192,8 +190,10 @@ process tools str =
         putStrLn $ Text.unpack text
         mapM_ (putStrLn . showEntry) entries
 
+cedictFile = "cedict_1_0_ts_utf-8_mdbg.txt"
+
 main =
     do
-        tools <- initCedictTools
+        tools <- initCedictTools cedictFile
         input <- getContents
         mapM_ (process tools . Text.pack) (lines input)
